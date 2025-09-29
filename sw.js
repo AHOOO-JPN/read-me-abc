@@ -5,7 +5,10 @@ const FILES_TO_CACHE = [
   "./manifest.json",
   "./icon/read_me_icon_192.png",
   "./icon/read_me_icon_512.png",
+  "./style.css",
+  "./script.js"
 ];
+/* 以降は今のままでOK */
 
 // インストール時：基本ファイルをキャッシュ
 self.addEventListener("install", (e) => {
