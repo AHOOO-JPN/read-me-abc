@@ -1,4 +1,4 @@
-const CACHE_NAME = "readmeabc-v2";
+const CACHE_NAME = "readmeabc-v3";
 const FILES_TO_CACHE = [
   "./",
   "./index.html",
@@ -9,7 +9,7 @@ const FILES_TO_CACHE = [
   "./script.js"    // あれば
 ];
 
-// インストール時にキャッシュ
+// インストール時：基本ファイルをキャッシュ
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -19,7 +19,7 @@ self.addEventListener("install", (e) => {
   self.skipWaiting();
 });
 
-// 有効化時に古いキャッシュ削除
+// 有効化時：古いキャッシュ削除
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then((keyList) => {
@@ -35,8 +35,29 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
-// フェッチ時にキャッシュ優先
+// フェッチ時：キャッシュ優先 + 動的キャッシュ（画像/音声も）
 self.addEventListener("fetch", (e) => {
+  const url = e.request.url;
+
+  // 動的キャッシュ対象：画像と音声
+  if (url.match(/\.(png|jpg|jpeg|gif|webp|svg|mp3|wav|ogg)$/i)) {
+    e.respondWith(
+      caches.match(e.request).then((response) => {
+        return (
+          response ||
+          fetch(e.request).then((res) => {
+            return caches.open(CACHE_NAME).then((cache) => {
+              cache.put(e.request, res.clone());
+              return res;
+            });
+          })
+        );
+      })
+    );
+    return;
+  }
+
+  // デフォルト：キャッシュ優先
   e.respondWith(
     caches.match(e.request).then((response) => {
       return response || fetch(e.request);
