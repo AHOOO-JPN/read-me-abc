@@ -3,10 +3,8 @@ const FILES_TO_CACHE = [
   "./",
   "./index.html",
   "./manifest.json",
-  "./read_me_icon_192.png",
-  "./read_me_icon_512.png",
-  "./style.css",   // あれば
-  "./script.js"    // あれば
+  "./icon/read_me_icon_192.png",
+  "./icon/read_me_icon_512.png",
 ];
 
 // インストール時：基本ファイルをキャッシュ
