@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=yes, maximum-scale=5" />
+<title>Read Me ABC! – Phonics Mode</title>
+<style>
+*,*::before,*::after{ box-sizing:border-box; min-width:0; }
+:root{
+  --panelW:300px; --panelCellH:48px; --panelCellFS:16px; --panelGap:12px;
+  --ink:#111; --muted:#dfe5ea; --key:72px; --gap:10px; --okSize:72px;
+  --bg-strong:#e7f0ff; --accent:#3B82F6; --accentDark:#1E40AF;
+  --wall:none; --wallOpacity:0; --minAppW:980px;
+}
+html,body{height:100%;margin:0;background:var(--bg-strong);color:var(--ink);
+  background-image:var(--wall),linear-gradient(rgba(255,255,255,var(--wallOpacity)),rgba(255,255,255,var(--wallOpacity)));
+  background-size:cover;background-position:center;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
+}
+.app{position:relative;height:100svh;display:grid;grid-template-rows:auto auto 1fr;overflow:auto;min-width:var(--minAppW)}
+@supports not (height:100svh){.app{height:100vh}}
+header{padding:8px 12px}
+.display{margin:6px 12px;background:#fff;border:2px solid var(--muted);border-radius:16px;
+  padding:12px;min-height:calc(var(--key)*0.9);font-size:calc(var(--key)*0.5);line-height:1.4;word-wrap:break-word}
+
+header h1{position:relative;font-size:2em;font-weight:900;display:flex;gap:.5em;justify-content:center;flex-wrap:wrap}
+header h1 span{position:relative;z-index:1}
+header h1 span::before{content:"";position:absolute;inset:-.5em;border-radius:65%;background:var(--accent);z-index:-1}
+header h1 span::before {
+  border-radius: 50%;
+  aspect-ratio: 1 / 1;
+  transform: rotate(calc(-3deg + 6deg * var(--i))); /* iをJSで割り当て */
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+header h1 span:hover::before {
+  transform: scale(1.15) rotate(calc(-3deg + 6deg * var(--i)));
+  background: var(--accentDark);
+}
+
+.deck{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,var(--panelW));
+  gap:12px;padding:8px 12px 12px;height:100%;min-height:0;overflow:hidden;align-items:stretch}
+.panel,.boardWrap{background:rgba(255,255,255,.70);border:3px solid var(--muted);border-radius:18px;padding:12px;height:100%;min-height:0}
+.panel{display:flex;flex-direction:column;gap:var(--panelGap);overflow:auto}
+
+.theme-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.themeBtn{width:var(--panelCellH);height:var(--panelCellH);aspect-ratio:1/1;border-radius:50%;border:3px solid var(--muted);cursor:pointer}
+#tRed{background:#E84C3D} #tBlue{background:#3B82F6} #tYellow{background:#ECA400} #tGreen{background:#20C997} #tPink{background:#E91E63}
+.customBtn{height:var(--panelCellH);border:2px solid var(--accent);background:#fff;color:#234;border-radius:14px;font-weight:900;font-size:var(--panelCellFS);display:grid;place-items:center;cursor:pointer}
+.fileInput{display:none}
+.voiceGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.voiceGrid select,.voiceGrid button{height:var(--panelCellH);font-weight:800;font-size:var(--panelCellFS);width:100%}
+.voiceGrid select{border:2px solid var(--accent);border-radius:14px;background:#fff;color:#234;padding:0 10px}
+#reloadVoiceBtn{-webkit-appearance:none;appearance:none;border-radius:14px;border:2px solid var(--accent);background:#fff;color:#234}
+
+/* ===== 左パネル（letters / symbols / numbers / action） ===== */
+.boardWrap{display:grid;grid-template-rows:auto 8px auto 8px auto 8px auto;gap:0;overflow:hidden;align-content:start}
+.kanaGrid{display:grid;grid-template-columns:repeat(10,var(--key));gap:var(--gap);border-bottom:2px solid var(--muted);padding-bottom:var(--gap)}
+.col{display:grid;grid-auto-rows:var(--key);gap:var(--gap)}
+.symRow,.numRow,.actionRow{display:grid;gap:var(--gap);align-items:center}
+.symRow,.numRow{grid-template-columns:repeat(10,var(--key))}
+.numRow{padding:var(--gap) 0;border-bottom:2px solid var(--muted)}
+
+/* ★ actionRow：12列 */
+.actionRow{grid-template-columns:repeat(12,var(--key))}
+.key{width:var(--key);height:var(--key);border:2px solid #cfd7df;border-radius:16px;display:grid;place-items:center;font-weight:900;font-size:calc(var(--key)*0.5);color:#111;box-shadow:0 2px 0 rgba(0,0,0,.08);cursor:pointer}
+#questionKey{grid-column:1 / span 1}
+#caseBtn{grid-column:2 / span 1}
+
+/* トリプルキー（Space / Back / Clear）：3〜5列 */
+.triKey{grid-column:3 / span 3; height:var(--okSize); display:grid; grid-template-columns:repeat(3,1fr); gap:6px;}
+.triKey .key{height:100%; font-size:calc(var(--key)*0.32)}
+
+/* Read it! は 6〜10列（＝5キー幅） */
+.okKey{grid-column:6 / span 5; height:var(--okSize); border:5px solid var(--accent); border-radius:20px; font-weight:900; font-size:calc(var(--key)*0.5); background:var(--accentDark); color:#fff; transition:background .08s,color .08s,transform .08s}
+.okKey:active{background:#fff;color:#000;transform:scale(.98)}
+
+/* ===== テーマ ===== */
+.theme-red{--bg-strong:#ffe3e3;--accent:#E84C3D;--accentDark:#C0392B}
+.theme-blue{--bg-strong:#e7f0ff;--accent:#3B82F6;--accentDark:#1E40AF}
+.theme-yellow{--bg-strong:#fff4bf;--accent:#ECA400;--accentDark:#B58100}
+.theme-green{--bg-strong:#e6ffe6;--accent:#20C997;--accentDark:#0E9F6E}
+.theme-pink{--bg-strong:#ffe0ef;--accent:#E91E63;--accentDark:#AD1457}
+button{touch-action:manipulation}
+
+/* ===== セグメント / スライダー ===== */
+.btn-flat{background:#fff;color:#234;border:2px solid var(--accent);border-radius:14px;font-weight:900}
+.btn-flat.active{background:var(--accent);color:#fff;border-color:var(--accentDark)}
+.btn-flat:active{transform:translateY(1px)}
+.segment{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.segment button{height:48px;min-width:44px}
+
+.sliders{display:grid;gap:12px;margin-top:8px}
+.ctrl{display:grid;grid-template-columns:88px 1fr 70px;gap:10px;align-items:center}
+.ctrl label{font-weight:900;color:#123;font-size:16px}
+.ctrl input[type="range"]{width:100%;-webkit-appearance:none;height:18px;background:#e6eef7;border-radius:999px;outline:none}
+.ctrl input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:36px;height:36px;border-radius:50%;background:#fff;border:3px solid var(--accent)}
+.ctrl input[type="range"]::-moz-range-thumb{width:36px;height:36px;border-radius:50%;background:#fff;border:3px solid var(--accent)}
+.val{font-weight:900;color:#123;text-align:right}
+
+#hint{font-size:12px;color:#334;background:#fff;border:1px dashed var(--accent);border-radius:10px;padding:8px 10px;margin-top:6px}
+#animation-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:999}
+.emoji-float{position:absolute;bottom:-50px;font-size:48px;animation:float-up 1 ease-out}
+@keyframes float-up{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-80vh) scale(1.5);opacity:0}}
+
+@media (orientation:landscape) and (max-width:740px){
+  header h1{font-size:clamp(16px,4vw,24px);gap:.35em}
+  :root{--panelGap:10px;--gap:8px}
+  .display{min-height:calc(var(--key)*0.8);font-size:clamp(16px,calc(var(--key)*0.45),24px)}
+  .okKey,.key{height:calc(var(--okSize)*0.9)}
+}
+@media (max-width:480px){
+  :root{--gap:6px}
+  .display{min-height:calc(var(--key)*0.7);font-size:clamp(14px,calc(var(--key)*0.4),20px)}
+  .ctrl label{font-size:13px}
+}
+</style>
+</head>
+<body class="theme-blue">
+<div class="app">
+  <div id="animation-overlay"></div>
+  <header>
+    <h1><span>R</span><span>E</span><span>A</span><span>D</span><span>📖</span><span>M</span><span>E</span><span>!</span><span>🔡</span></h1>
+  </header>
+
+  <div class="display" id="display" aria-live="polite"></div>
+
+  <div class="deck" id="deck">
+    <section class="boardWrap">
+      <div class="kanaGrid" id="letterGrid"></div>
+      <div></div>
+
+      <div class="symRow" id="symRow"></div>
+      <div></div>
+
+      <div class="numRow" id="numRow"></div>
+      <div></div>
+
+      <div class="actionRow" id="actionRow">
+        <button class="key" id="questionKey">?</button>
+        <button class="key" id="caseBtn" title="Toggle case">a/A</button>
+
+        <!-- Space / Backspace / Clear（3〜5列） -->
+        <div class="triKey" id="triKey">
+          <button class="key" id="miniSpace" title="Space">␣</button>
+          <button class="key" id="miniBack" title="Backspace">⌫</button>
+          <button class="key" id="miniClear" title="Clear">🗑️</button>
+        </div>
+
+        <!-- Read it!（6〜10列＝5キー幅） -->
+        <button class="okKey" id="okActionBtn">🤩 Read it! 💬</button>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="theme-controls">
+        <div class="theme-grid">
+          <button class="themeBtn" id="tRed" aria-label="Theme Red"></button>
+          <button class="themeBtn" id="tBlue" aria-label="Theme Blue"></button>
+          <button class="themeBtn" id="tYellow" aria-label="Theme Yellow"></button>
+          <button class="themeBtn" id="tGreen" aria-label="Theme Green"></button>
+          <button class="themeBtn" id="tPink" aria-label="Theme Pink"></button>
+        </div>
+        <div class="g3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px">
+          <label class="customBtn" for="bgPicker" style="grid-column:1/3;">🖼️ Choose background</label>
+          <button class="customBtn" id="bgResetBtn">Reset</button>
+        </div>
+        <input id="bgPicker" class="fileInput" type="file" accept="image/*">
+      </div>
+
+      <div class="voiceGrid">
+        <select id="voiceSelect" aria-label="Voice select"></select>
+        <button id="reloadVoiceBtn">Reload</button>
+      </div>
+
+      <div style="font-weight:900;margin:6px 0 6px">Mode</div>
+      <div id="modeSeg" class="segment" role="tablist" aria-label="Reading mode">
+        <button class="btn-flat" data-mode="letters" role="tab">Letters</button>
+        <button class="btn-flat" data-mode="words" role="tab">Words</button>
+        <button class="btn-flat active" data-mode="phonics" role="tab">Phonics</button>
+      </div>
+
+      <div class="sliders">
+        <div class="ctrl">
+          <label for="rate">Rate</label>
+          <input type="range" id="rate" min="0.7" max="1.5" step="0.05" value="1.0">
+          <div class="val" id="rateOut">1.00</div>
+        </div>
+        <div class="ctrl">
+          <label for="pitch">Pitch</label>
+          <input type="range" id="pitch" min="0.7" max="1.6" step="0.05" value="1.0">
+          <div class="val" id="pitchOut">1.00</div>
+        </div>
+      </div>
+
+      <div id="hint" style="margin-top:8px">Tap a letter to hear it. Phonics: “A, as in apple.” Keyboard: Enter=Read, Backspace=delete, Space=space.</div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function(){
+  const display = document.getElementById('display');
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  const letterGrid = document.getElementById('letterGrid');
+  const symRow = document.getElementById('symRow');
+  const numRow = document.getElementById('numRow');
+
+  const PALETTES = {
+    red:["#FF6B6B","#FF8E4D","#FF3D5A","#FFB04D","#E84C3D","#FF7043"],
+    blue:["#4D9BFF","#22B8FF","#3B82F6","#00B8D9","#5C7CFA","#4DD0E1"],
+    yellow:["#FFC93C","#FFB300","#FFD166","#ECA400","#FF9F1C","#F9C74F"],
+    green:["#2ECC71","#20C997","#7BD88A","#00C853","#2ABF88","#1ABC9C"],
+    pink:["#FF6FAE","#FF4DA6","#FF8BCB","#E91E63","#FF5D8F","#FF85B3"]
+  };
+  const BG = { red:"#ffe3e3", blue:"#e7f0ff", yellow:"#fff4bf", green:"#e6ffe6", pink:"#ffe0ef" };
+
+  let currentTheme='blue';
+  const modeSeg = document.getElementById('modeSeg');
+  let mode = localStorage.getItem('abc_mode') || 'phonics';
+  setActiveMode(mode);
+  let isLower = (localStorage.getItem('isLower_ph') ?? 'false') === 'true';
+
+  const PHONICS = {
+    A:{cue:"apple"}, B:{cue:"bat"}, C:{cue:"cat"}, D:{cue:"dog"}, E:{cue:"elephant"},
+    F:{cue:"fish"}, G:{cue:"goat"}, H:{cue:"hat"}, I:{cue:"igloo"}, J:{cue:"jet"},
+    K:{cue:"kite"}, L:{cue:"lamp"}, M:{cue:"map"}, N:{cue:"nest"}, O:{cue:"octopus"},
+    P:{cue:"pig"}, Q:{cue:"queen"}, R:{cue:"rat"}, S:{cue:"sun"}, T:{cue:"tap"},
+    U:{cue:"umbrella"}, V:{cue:"van"}, W:{cue:"wig"}, X:{cue:"box"}, Y:{cue:"yarn"}, Z:{cue:"zebra"}
+  };
+
+  function makeKey(ch, onClick){
+    const b=document.createElement('button'); b.className='key'; b.textContent=ch;
+    b.addEventListener('click',()=>onClick(ch),{passive:true}); return b;
+  }
+
+  function buildLetters(){
+    letterGrid.innerHTML="";
+    const cols=10, rows=Math.ceil(letters.length/cols);
+    const matrix=Array.from({length:cols},()=>[]);
+    letters.forEach((L,i)=>{ const col=i%cols; matrix[col].push(isLower?L.toLowerCase():L); });
+    matrix.forEach(colArr=>{
+      const col=document.createElement('div'); col.className='col';
+      colArr.forEach(k=> col.appendChild(makeKey(k, insertText)));
+      for(let i=colArr.length;i<rows;i++){
+        const s=document.createElement('div'); s.style.width='var(--key)'; s.style.height='var(--key)'; s.style.visibility='hidden';
+        col.appendChild(s);
+      }
+      letterGrid.appendChild(col);
+    });
+    paintKeys(PALETTES[currentTheme]);
+  }
+  function buildSymbols(){
+    symRow.innerHTML="";
+    [",",".","!","'","-","’","&","(",")","/"].forEach(s=> symRow.appendChild(makeKey(s, insertText)));
+    paintKeys(PALETTES[currentTheme]);
+  }
+  function buildNumbers(){
+    numRow.innerHTML="";
+    "1,2,3,4,5,6,7,8,9,0".split(",").forEach(n=> numRow.appendChild(makeKey(n, insertText)));
+    paintKeys(PALETTES[currentTheme]);
+  }
+
+  function paintKeys(palette){
+    const keys=document.querySelectorAll('.key, #questionKey, #caseBtn');
+    let i=0; keys.forEach(k=>{ k.style.backgroundColor=palette[i++%palette.length]; });
+  }
+  function setTheme(name){
+    currentTheme=name;
+    document.body.className=`theme-${name}`;
+    document.documentElement.style.setProperty('--bg-strong', BG[name]);
+    paintKeys(PALETTES[name]);
+  }
+
+  function insertText(t){
+    display.textContent += t;
+    if(mode==='phonics'){
+      const L=t.toUpperCase();
+      if(PHONICS[L]) speakOnce(`${L}, as in ${PHONICS[L].cue}.`, {rate:1.02}); else speakOnce(t);
+    }else if(mode==='letters'){ speakOnce(t); } // 小文字は小文字のまま
+    else{ speakOnce(t,{rate:1.05,pitch:1.0}); }
+  }
+
+  /* 背景 */
+  const bgPicker=document.getElementById('bgPicker');
+  bgPicker.addEventListener('change',(e)=>{
+    const f=e.target.files&&e.target.files[0]; if(!f) return;
+    const reader=new FileReader();
+    reader.onload=()=>{ const dataUrl=reader.result; localStorage.setItem('bgImageABC_ph',dataUrl);
+      document.documentElement.style.setProperty('--wall',`url("${dataUrl}")`);
+      document.documentElement.style.setProperty('--wallOpacity',.10); };
+    reader.readAsDataURL(f);
+  });
+  const saved=localStorage.getItem('bgImageABC_ph');
+  if(saved){ document.documentElement.style.setProperty('--wall',`url("${saved}")`); document.documentElement.style.setProperty('--wallOpacity',.10); }
+  document.getElementById('bgResetBtn').addEventListener('click',()=>{
+    localStorage.removeItem('bgImageABC_ph'); document.documentElement.style.setProperty('--wall','none'); document.documentElement.style.setProperty('--wallOpacity',0);
+  },{passive:true});
+
+  /* Voice */
+  const voiceSel=document.getElementById('voiceSelect');
+  let voices=[], enVoice=null, warmed=false;
+  function uniqVoices(){ const m=new Map(); (speechSynthesis.getVoices()||[]).forEach(v=>{
+    if(!/^en(-|$)/i.test(v.lang)) return; const k=v.name+"|"+v.lang; if(!m.has(k)) m.set(k,v);
+  }); return [...m.values()]; }
+  function populateVoices(){
+    voices=uniqVoices(); voiceSel.innerHTML="";
+    voices.forEach((v,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=`${v.name} (${v.lang})`; voiceSel.appendChild(o); });
+    const idx=Math.max(0, voices.findIndex(v=>/female|samantha|karen|martha|ava|emma|us|gb|alloy/i.test(v.name)));
+    voiceSel.selectedIndex=idx; enVoice=voices[idx]||null;
+  }
+  voiceSel.addEventListener('change',()=>{ enVoice=voices[voiceSel.selectedIndex]||null; });
+  function warm(){ if(warmed) return; const u=new SpeechSynthesisUtterance(" "); u.lang="en-US"; u.volume=0; speechSynthesis.speak(u); warmed=true; }
+  document.getElementById('reloadVoiceBtn').addEventListener('click',()=>{ warmed=false; warm(); setTimeout(populateVoices,120); },{passive:true});
+
+  function speakOnce(text, opts={}){
+    try{ speechSynthesis.resume(); }catch(e){}
+    const u=new SpeechSynthesisUtterance(text||" ");
+    if(enVoice) u.voice=enVoice;
+    u.lang=(enVoice&&enVoice.lang)||"en-US";
+    const rate=parseFloat(document.getElementById('rate')?.value||"1.0");
+    const pitch=parseFloat(document.getElementById('pitch')?.value||"1.0");
+    u.rate=opts.rate??rate; u.pitch=opts.pitch??pitch; speechSynthesis.speak(u);
+    return new Promise(res=>{ u.onend=res; u.onerror=res; });
+  }
+
+  async function speakLetters(t){
+    const a=Array.from(t.replace(/\s+/g,''));
+    for(const ch of a){
+      if(mode==='phonics'){
+        const L=ch.toUpperCase();
+        if(PHONICS[L]){ await speakOnce(`${L}, as in ${PHONICS[L].cue}.`, {rate:1.02}); }
+        else{ await speakOnce(ch); }
+      }else{ await speakOnce(ch); } // letters: そのまま
+      await new Promise(r=>setTimeout(r,60));
+    }
+  }
+
+  function triggerEmojiAnimation(emojis){
+    const overlay=document.getElementById('animation-overlay');
+    if(!overlay||!emojis) return;
+    emojis.forEach((emoji,i)=>{
+      setTimeout(()=>{
+        const el=document.createElement('div'); el.className='emoji-float'; el.textContent=emoji;
+        el.style.left=(Math.random()*80+10)+'%'; el.style.animationDuration=(Math.random()*2+3)+'s';
+        overlay.appendChild(el); el.addEventListener('animationend',()=>{ el.remove(); });
+      }, i*200);
+    });
+  }
+
+  async function speak(){
+    const t=display.textContent.trim(); if(!t) return; warm();
+    const lower=t.toLowerCase();
+    if(lower==='hello') triggerEmojiAnimation(['👋','😊']);
+    else if(lower==='congrats'||lower==='congratulations') triggerEmojiAnimation(['🎉','🥳','🎊']);
+    else if(lower==='love') triggerEmojiAnimation(['❤️','😍']);
+    else if(lower==='cat') triggerEmojiAnimation(['🐱']);
+    else if(lower==='dog') triggerEmojiAnimation(['🐶']);
+    else if(lower==='panda') triggerEmojiAnimation(['🐼']);
+
+    if(mode==='letters'||mode==='phonics'){ await speakLetters(t); return; }
+    const parts=t.split(/([.!?])/);
+    for(let i=0;i<parts.length;i+=2){
+      const seg=(parts[i]||"").trim(); const p=(parts[i+1]||""); if(!seg&&!p) continue;
+      await speakOnce(seg+p,{rate:p==="!"?1.12:undefined,pitch:p==="!"?1.08:undefined});
+    }
+  }
+
+  /* レイアウト計算 */
+  function autoFit(){
+    const vw=innerWidth, gutters=36, innerVW=Math.max(320,vw-gutters);
+    const panelW=Math.max(200,Math.min(360,Math.round(innerVW*0.32)));
+    document.documentElement.style.setProperty('--panelW', panelW+'px');
+
+    const bw=document.querySelector('.boardWrap'), leftW=bw.clientWidth;
+    const rootStyles=getComputedStyle(document.documentElement);
+    let gap=parseInt(rootStyles.getPropertyValue('--gap'))||10;
+    const totalRows=7, totalGaps=6, spacersHeight=8+8+8;
+    const rowsH=bw.clientHeight-spacersHeight;
+    let keyW=Math.floor((leftW-(10-1)*gap)/10);
+    let keyH=Math.floor((rowsH-totalGaps*gap)/totalRows);
+    let key=Math.min(keyW,keyH);
+    if(key<50){ gap=6; document.documentElement.style.setProperty('--gap',gap+'px');
+      keyW=Math.floor((leftW-(10-1)*gap)/10); keyH=Math.floor((rowsH-totalGaps*gap)/totalRows); key=Math.min(keyW,keyH);
+    } else { document.documentElement.style.setProperty('--gap','10px'); }
+    key=Math.max(36,Math.min(104,key));
+    document.documentElement.style.setProperty('--key',key+'px');
+    document.documentElement.style.setProperty('--okSize',key+'px');
+  }
+
+  /* 操作 */
+  document.getElementById('questionKey').addEventListener('click',()=>insertText('?'),{passive:true});
+  document.getElementById('caseBtn').addEventListener('click',()=>{ isLower=!isLower; localStorage.setItem('isLower_ph', String(isLower)); buildLetters(); paintKeys(PALETTES[currentTheme]); },{passive:true});
+  document.getElementById('miniSpace').addEventListener('click',()=>insertText(' '),{passive:true});
+  document.getElementById('miniBack').addEventListener('click',()=>{ const a=[...display.textContent]; a.pop(); display.textContent=a.join(''); },{passive:true});
+  document.getElementById('miniClear').addEventListener('click',()=>{ display.textContent=""; },{passive:true});
+  document.getElementById('okActionBtn').addEventListener('click',speak,{passive:true});
+
+  ['tRed','tBlue','tYellow','tGreen','tPink'].forEach(id=>{
+    document.getElementById(id).addEventListener('click',()=>setTheme(id.slice(1).toLowerCase()));
+  });
+
+  modeSeg.addEventListener('click',(e)=>{
+    const btn=e.target.closest('button[data-mode]'); if(!btn) return;
+    mode=btn.dataset.mode; setActiveMode(mode); localStorage.setItem('abc_mode',mode);
+  },{passive:true});
+  function setActiveMode(m){ [...modeSeg.querySelectorAll('button')].forEach(b=> b.classList.toggle('active', b.dataset.mode===m)); }
+
+  // スライダー（値表示のみ）
+  const rateEl=document.getElementById('rate'), pitchEl=document.getElementById('pitch');
+  const rateOut=document.getElementById('rateOut'), pitchOut=document.getElementById('pitchOut');
+  function showVal(){ rateOut.textContent=(+rateEl.value).toFixed(2); pitchOut.textContent=(+pitchEl.value).toFixed(2); }
+  rateEl.addEventListener('input',showVal,{passive:true});
+  pitchEl.addEventListener('input',showVal,{passive:true}); showVal();
+
+  // 物理キーボード
+  window.addEventListener('keydown',(e)=>{
+    const tag=(document.activeElement&&document.activeElement.tagName)||"";
+    if(tag==='SELECT' || tag==='INPUT' || e.target.closest?.('.segment')) return;
+    if(e.key==='Enter'){ e.preventDefault(); speak(); return; }
+    if(e.key==='Backspace'){ e.preventDefault(); const a=[...display.textContent]; a.pop(); display.textContent=a.join(''); return; }
+    if(e.key===' ' || e.code==='Space' || e.key==='Spacebar'){ e.preventDefault(); insertText(' '); return; }
+    if(/^[a-zA-Z0-9]$/.test(e.key)){ e.preventDefault(); insertText(e.key); return; }
+    if(/^[,.\-!'’()\/]$/.test(e.key)){ e.preventDefault(); insertText(e.key); return; }
+  });
+
+  addEventListener('resize',autoFit); addEventListener('orientationchange',autoFit);
+
+  function init(){
+    buildLetters(); buildSymbols(); buildNumbers(); setTheme('blue'); autoFit();
+    if('speechSynthesis' in window){
+      populateVoices(); speechSynthesis.onvoiceschanged = populateVoices;
+      setTimeout(populateVoices,300); setTimeout(populateVoices,1000);
+    }
+  }
+
+  function unlockTTS(){
+    try{ speechSynthesis.resume(); }catch(e){}
+    const u=new SpeechSynthesisUtterance(" "); u.lang="en-US"; u.volume=0; speechSynthesis.speak(u);
+    populateVoices(); setTimeout(populateVoices,200); setTimeout(populateVoices,800);
+    ['touchstart','mousedown','keydown'].forEach(ev=>{ document.removeEventListener(ev, unlockTTS, true); });
+  }
+  ['touchstart','mousedown','keydown'].forEach(ev=>{
+    document.addEventListener(ev, unlockTTS, { once:true, capture:true });
+  });
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ try{ speechSynthesis.resume(); }catch(e){} } });
+
+  init();
+
+document.querySelectorAll("header h1 span").forEach((el)=>{
+  const deg = (Math.random() * 12 - 6).toFixed(1); // -6〜+6度
+  el.style.setProperty("--i", deg);
+});
+
+})();
+</script>
+</body>
+</html>
