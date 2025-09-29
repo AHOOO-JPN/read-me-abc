@@ -183,6 +183,12 @@ button{touch-action:manipulation}
         <button class="btn-flat active" data-mode="phonics" role="tab">Phonics</button>
       </div>
 
+      <!-- ▼ モード名の音声ガイド設定（任意） -->
+<label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:700">
+  <input id="modeCueToggle" type="checkbox" checked style="transform:scale(1.2)">
+  Voice cue on mode change
+</label>
+
       <div class="sliders">
         <div class="ctrl">
           <label for="rate">Rate</label>
@@ -230,6 +236,37 @@ button{touch-action:manipulation}
     K:{cue:"kite"}, L:{cue:"lamp"}, M:{cue:"map"}, N:{cue:"nest"}, O:{cue:"octopus"},
     P:{cue:"pig"}, Q:{cue:"queen"}, R:{cue:"rat"}, S:{cue:"sun"}, T:{cue:"tap"},
     U:{cue:"umbrella"}, V:{cue:"van"}, W:{cue:"wig"}, X:{cue:"box"}, Y:{cue:"yarn"}, Z:{cue:"zebra"}
+
+    /* =========================
+   モード切替アナウンス機能
+   ========================= */
+const modeCueToggle = document.getElementById('modeCueToggle');
+// 初期値は LocalStorage を反映（無ければ true）
+let modeCueEnabled = (localStorage.getItem('abc_mode_cue_enabled') ?? 'true') === 'true';
+if (modeCueToggle) {
+  modeCueToggle.checked = modeCueEnabled;
+  modeCueToggle.addEventListener('change', () => {
+    modeCueEnabled = !!modeCueToggle.checked;
+    localStorage.setItem('abc_mode_cue_enabled', String(modeCueEnabled));
+  }, {passive:true});
+}
+
+// モード名を短くアナウンス
+async function announceMode(m){
+  if (!modeCueEnabled) return;
+  // いまの読み上げを停止してから少し待つ（Safari 安定化）
+  if (speechSynthesis.speaking) {
+    speechSynthesis.cancel();
+    await new Promise(r=>setTimeout(r,80));
+  }
+  warm(); // 一応TTSウォームアップ
+  const phrase =
+    m === 'phonics' ? 'Phonics mode' :
+    m === 'words'   ? 'Words mode'   :
+                      'Letters mode';
+  // ややハッキリめの設定で短く
+  await speakOnce(phrase, { rate: 1.05, pitch: 1.02 });
+} 
   };
 
   function makeKey(ch, onClick){
@@ -403,10 +440,29 @@ button{touch-action:manipulation}
     document.getElementById(id).addEventListener('click',()=>setTheme(id.slice(1).toLowerCase()));
   });
 
-  modeSeg.addEventListener('click',(e)=>{
-    const btn=e.target.closest('button[data-mode]'); if(!btn) return;
-    mode=btn.dataset.mode; setActiveMode(mode); localStorage.setItem('abc_mode',mode);
-  },{passive:true});
+modeSeg.addEventListener('click', async (e)=>{
+  const btn = e.target.closest('button[data-mode]');
+  if(!btn) return;
+
+  // 1) まず現在の読み上げを止める
+  if (speechSynthesis.speaking){
+  speechSynthesis.cancel();
+  await new Promise(r=>setTimeout(r,80));
+}
+
+  // 2) モード反映（UI更新・保存）
+  mode = btn.dataset.mode;
+  setActiveMode(mode);
+  localStorage.setItem('abc_mode', mode);
+
+  // 3) 新モード名を短くアナウンス
+  announceMode(mode);
+
+  // 4) 例語がある場合は更新（導入済みなら）
+  if ((typeof buildExamples === 'function') && (mode==='words' || mode==='phonics')) {
+    buildExamples('A');
+  }
+}, {passive:true});
   function setActiveMode(m){ [...modeSeg.querySelectorAll('button')].forEach(b=> b.classList.toggle('active', b.dataset.mode===m)); }
 
   // スライダー（値表示のみ）
