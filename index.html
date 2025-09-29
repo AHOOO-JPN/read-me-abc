@@ -32,10 +32,9 @@ header h1 span::before{content:"";position:absolute;inset:-.5em;border-radius:65
 header h1 span::before {
   border-radius: 50%;
   aspect-ratio: 1 / 1;
-  transform: rotate(calc(-3deg + 6deg * var(--i))); /* iをJSで割り当て */
+  transform: rotate(calc(-3deg + 6deg * var(--i)));
   transition: transform 0.2s ease, background 0.2s ease;
 }
-
 header h1 span:hover::before {
   transform: scale(1.15) rotate(calc(-3deg + 6deg * var(--i)));
   background: var(--accentDark);
@@ -184,10 +183,10 @@ button{touch-action:manipulation}
       </div>
 
       <!-- ▼ モード名の音声ガイド設定（任意） -->
-<label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:700">
-  <input id="modeCueToggle" type="checkbox" checked style="transform:scale(1.2)">
-  Voice cue on mode change
-</label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:700">
+        <input id="modeCueToggle" type="checkbox" checked style="transform:scale(1.2)">
+        Voice cue on mode change
+      </label>
 
       <div class="sliders">
         <div class="ctrl">
@@ -236,38 +235,33 @@ button{touch-action:manipulation}
     K:{cue:"kite"}, L:{cue:"lamp"}, M:{cue:"map"}, N:{cue:"nest"}, O:{cue:"octopus"},
     P:{cue:"pig"}, Q:{cue:"queen"}, R:{cue:"rat"}, S:{cue:"sun"}, T:{cue:"tap"},
     U:{cue:"umbrella"}, V:{cue:"van"}, W:{cue:"wig"}, X:{cue:"box"}, Y:{cue:"yarn"}, Z:{cue:"zebra"}
+  }; /* ←★★ カッコを閉じて終了（以前はここに余計なコードが混入） */
 
-    /* =========================
-   モード切替アナウンス機能
-   ========================= */
-const modeCueToggle = document.getElementById('modeCueToggle');
-// 初期値は LocalStorage を反映（無ければ true）
-let modeCueEnabled = (localStorage.getItem('abc_mode_cue_enabled') ?? 'true') === 'true';
-if (modeCueToggle) {
-  modeCueToggle.checked = modeCueEnabled;
-  modeCueToggle.addEventListener('change', () => {
-    modeCueEnabled = !!modeCueToggle.checked;
-    localStorage.setItem('abc_mode_cue_enabled', String(modeCueEnabled));
-  }, {passive:true});
-}
-
-// モード名を短くアナウンス
-async function announceMode(m){
-  if (!modeCueEnabled) return;
-  // いまの読み上げを停止してから少し待つ（Safari 安定化）
-  if (speechSynthesis.speaking) {
-    speechSynthesis.cancel();
-    await new Promise(r=>setTimeout(r,80));
+  /* =========================
+     モード切替アナウンス機能（PHONICS外に配置）
+     ========================= */
+  const modeCueToggle = document.getElementById('modeCueToggle');
+  let modeCueEnabled = (localStorage.getItem('abc_mode_cue_enabled') ?? 'true') === 'true';
+  if (modeCueToggle) {
+    modeCueToggle.checked = modeCueEnabled;
+    modeCueToggle.addEventListener('change', () => {
+      modeCueEnabled = !!modeCueToggle.checked;
+      localStorage.setItem('abc_mode_cue_enabled', String(modeCueEnabled));
+    }, {passive:true});
   }
-  warm(); // 一応TTSウォームアップ
-  const phrase =
-    m === 'phonics' ? 'Phonics mode' :
-    m === 'words'   ? 'Words mode'   :
-                      'Letters mode';
-  // ややハッキリめの設定で短く
-  await speakOnce(phrase, { rate: 1.05, pitch: 1.02 });
-} 
-  };
+  async function announceMode(m){
+    if (!modeCueEnabled) return;
+    if (speechSynthesis.speaking) {
+      speechSynthesis.cancel();
+      await new Promise(r=>setTimeout(r,80));
+    }
+    warm();
+    const phrase =
+      m === 'phonics' ? 'Phonics mode' :
+      m === 'words'   ? 'Words mode'   :
+                        'Letters mode';
+    await speakOnce(phrase, { rate: 1.05, pitch: 1.02 });
+  }
 
   function makeKey(ch, onClick){
     const b=document.createElement('button'); b.className='key'; b.textContent=ch;
@@ -317,7 +311,7 @@ async function announceMode(m){
     if(mode==='phonics'){
       const L=t.toUpperCase();
       if(PHONICS[L]) speakOnce(`${L}, as in ${PHONICS[L].cue}.`, {rate:1.02}); else speakOnce(t);
-    }else if(mode==='letters'){ speakOnce(t); } // 小文字は小文字のまま
+    }else if(mode==='letters'){ speakOnce(t); }
     else{ speakOnce(t,{rate:1.05,pitch:1.0}); }
   }
 
@@ -371,7 +365,7 @@ async function announceMode(m){
         const L=ch.toUpperCase();
         if(PHONICS[L]){ await speakOnce(`${L}, as in ${PHONICS[L].cue}.`, {rate:1.02}); }
         else{ await speakOnce(ch); }
-      }else{ await speakOnce(ch); } // letters: そのまま
+      }else{ await speakOnce(ch); }
       await new Promise(r=>setTimeout(r,60));
     }
   }
@@ -389,6 +383,12 @@ async function announceMode(m){
   }
 
   async function speak(){
+    /* ★★ 既存読み上げを停止してから開始（安定化のため80ms待機） */
+    if (speechSynthesis.speaking){
+      speechSynthesis.cancel();
+      await new Promise(r=>setTimeout(r,80));
+    }
+
     const t=display.textContent.trim(); if(!t) return; warm();
     const lower=t.toLowerCase();
     if(lower==='hello') triggerEmojiAnimation(['👋','😊']);
@@ -440,30 +440,29 @@ async function announceMode(m){
     document.getElementById(id).addEventListener('click',()=>setTheme(id.slice(1).toLowerCase()));
   });
 
-modeSeg.addEventListener('click', async (e)=>{
-  const btn = e.target.closest('button[data-mode]');
-  if(!btn) return;
+  modeSeg.addEventListener('click', async (e)=>{
+    const btn = e.target.closest('button[data-mode]');
+    if(!btn) return;
 
-  // 1) まず現在の読み上げを止める
-  if (speechSynthesis.speaking){
-  speechSynthesis.cancel();
-  await new Promise(r=>setTimeout(r,80));
-}
+    if (speechSynthesis.speaking){
+      speechSynthesis.cancel();
+      await new Promise(r=>setTimeout(r,80));
+    }
 
-  // 2) モード反映（UI更新・保存）
-  mode = btn.dataset.mode;
-  setActiveMode(mode);
-  localStorage.setItem('abc_mode', mode);
+    mode = btn.dataset.mode;
+    setActiveMode(mode);
+    localStorage.setItem('abc_mode', mode);
 
-  // 3) 新モード名を短くアナウンス
-  announceMode(mode);
+    announceMode(mode);
 
-  // 4) 例語がある場合は更新（導入済みなら）
-  if ((typeof buildExamples === 'function') && (mode==='words' || mode==='phonics')) {
-    buildExamples('A');
+    if ((typeof buildExamples === 'function') && (mode==='words' || mode==='phonics')) {
+      buildExamples('A');
+    }
+  }, {passive:true});
+
+  function setActiveMode(m){
+    [...modeSeg.querySelectorAll('button')].forEach(b=> b.classList.toggle('active', b.dataset.mode===m));
   }
-}, {passive:true});
-  function setActiveMode(m){ [...modeSeg.querySelectorAll('button')].forEach(b=> b.classList.toggle('active', b.dataset.mode===m)); }
 
   // スライダー（値表示のみ）
   const rateEl=document.getElementById('rate'), pitchEl=document.getElementById('pitch');
@@ -506,10 +505,10 @@ modeSeg.addEventListener('click', async (e)=>{
 
   init();
 
-document.querySelectorAll("header h1 span").forEach((el)=>{
-  const deg = (Math.random() * 12 - 6).toFixed(1); // -6〜+6度
-  el.style.setProperty("--i", deg);
-});
+  document.querySelectorAll("header h1 span").forEach((el)=>{
+    const deg = (Math.random() * 12 - 6).toFixed(1);
+    el.style.setProperty("--i", deg);
+  });
 
 })();
 </script>
@@ -519,6 +518,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js');
 }
 </script>
-  
+
 </body>
 </html>
